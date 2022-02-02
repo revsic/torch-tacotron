@@ -9,7 +9,7 @@ from .misc import beta_bernoulli, dynconv
 
 
 class Aligner(nn.Module):
-    """Forward attention.
+    """Dynamic Convolution attention.
     """
     def __init__(self,
                  inputs: int,
