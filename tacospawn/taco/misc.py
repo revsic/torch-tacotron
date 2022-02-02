@@ -6,6 +6,53 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+def beta_bernoulli(length: int, alpha: float, beta: float) -> torch.Tensor:
+    """Compute beta bernoulli distribution.
+    Args:
+        length: K, total length.
+        alpha, beta: beta-binomial parameters.
+    Returns:
+        [torch.float32; [K]], beta bernoulli values.
+    """
+    def logbeta(a, b): return a.lgamma() + b.lgamma() - (a + b).lgamma()
+    # log(n! / (k! x (n - k)!))
+    # = logGamma(n + 1) - logGamma(k + 1) - logGamma(n - k + 1)
+    # = logGamma(n + 2) - log(n + 1) - logGamma(k + 1) - logGamma(n - k + 1)
+    # = -logbeta(k + 1, n - k + 1) - log(n + 1) 
+    def logcomb(n, k): return -logbeta(k + 1, n - k + 1) - np.log(n + 1)
+    # since sequence consists of [0, n]
+    n = torch.tensor(length - 1, dtype=torch.float32)
+    alpha, beta = torch.tensor(alpha), torch.tensor(beta)
+    # [K]
+    k = torch.arange(length, dtype=torch.float32)
+    return torch.exp(
+        logcomb(n, k) + logbeta(k + alpha, n - k + beta) - logbeta(alpha, beta))
+
+
+def dynconv(inputs: torch.Tensor, weights: torch.Tensor) -> torch.Tensor:
+    """Dynamic convolution.
+    Args:
+        inputs: [torch.float32; [B, I, S]], input tensor.
+        weight: [torch.float32; [B, O, I, K]], weight tensor, assume K is odd.
+    Returns:
+        [torch.Tensor, [B, O, S]], convolved.
+    """
+    # B, I, S
+    bsize, in_channels, seqlen = inputs.shape
+    # _, O, _, K
+    _, out_channels, _, kernels = weights.shape
+    # [1, B x O, S]
+    out = F.conv1d(
+        # [1, B x I, S]
+        inputs.view(1, bsize * in_channels, seqlen),
+        # [B x O, I, K]
+        weights.view(bsize * out_channels, in_channels, kernels),
+        # set group size to batch size for
+        padding=kernels // 2, groups=bsize)
+    # [B, O, S]
+    return out.view(bsize, out_channels, seqlen)
+
+
 class Prenet(nn.Sequential):
     """Bottleneck with dropout.
     """
