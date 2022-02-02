@@ -33,10 +33,15 @@ class Config:
         # reduction
         self.reduction = 2
 
+        # align
+        self.dca_loc = 8
+        self.dca_kernels = 21
+        self.dca_priorlen = 11
+        self.dca_alpha = 0.1
+        self.dca_beta = 0.9
+
         # decoder
         self.dec_prenet = [256, 128]
-        self.dec_loc = 32
-        self.dec_kernels = 5
         self.dec_dropout = 0.5
         self.dec_layers = 2
 
