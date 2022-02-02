@@ -41,6 +41,7 @@ class Tacotron(nn.Module):
             config.channels + config.spkembed,
             config.channels,
             config.dec_prenet,
+            config.dec_loc,
             config.dec_kernels,
             config.dec_dropout,
             config.dec_layers,

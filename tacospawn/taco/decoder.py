@@ -16,6 +16,7 @@ class Decoder(nn.Module):
                  inputs: int,
                  channels: int,
                  hiddens: List[int],
+                 loc: int,
                  kernels: int,
                  dropout: float,
                  layers: int,
@@ -34,7 +35,7 @@ class Decoder(nn.Module):
         """
         super().__init__()
         self.prenet = Prenet(mel, hiddens, dropout)
-        self.aligner = Aligner(inputs, hiddens[-1], channels, kernels)
+        self.aligner = Aligner(inputs, hiddens[-1], channels, loc, kernels)
         self.blender = nn.GRU(inputs + hiddens[-1], channels)
         self.grus = nn.ModuleList([
             nn.GRU(channels, channels, batch_first=True)
