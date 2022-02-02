@@ -16,6 +16,7 @@ class Decoder(nn.Module):
                  inputs: int,
                  channels: int,
                  hiddens: List[int],
+                 kernels: int,
                  dropout: float,
                  layers: int,
                  mel: int,
@@ -25,6 +26,7 @@ class Decoder(nn.Module):
             inputs: size of the input channels.
             channels: size of the hidden channels.
             hiddens: the size of the hidden units for decoder prenet.
+            kernels: size of the convolutional kernels of location sensitive attention.
             dropout: dropout rates for decoder prenet.
             layers: the number of the GRU layers.
             mel: size of the output channels (channels of mel-spectrogram).
@@ -32,7 +34,7 @@ class Decoder(nn.Module):
         """
         super().__init__()
         self.prenet = Prenet(mel, hiddens, dropout)
-        self.aligner = Aligner(inputs + hiddens[-1], channels)
+        self.aligner = Aligner(inputs, hiddens[-1], channels, kernels)
         self.blender = nn.GRU(inputs + hiddens[-1], channels)
         self.grus = nn.ModuleList([
             nn.GRU(channels, channels, batch_first=True)

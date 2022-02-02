@@ -1,26 +1,34 @@
-from typing import Dict, List
+from typing import Dict
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .misc import Prenet
-
 
 class Aligner(nn.Module):
-    """Stepwise monotonic attention.
+    """Forward attention.
     """
-    def __init__(self, inputs: int, channels: int):
+    def __init__(self, inputs: int, queries: int, channels: int, kernels: int):
         """Initializer.
         Args:
-            input: size of the input tensors.
-            channels: size of the internal hidden states.
+            inputs: I, size of the input tensors.
+            queries: H, size of the input query.
+            channels: C, size of the internal hidden states.
+            kernels: size of the convolutional kernels.
         """
         super().__init__()
-        self.attn = nn.GRUCell(inputs, channels)
+        self.attn = nn.GRUCell(inputs + queries, channels)
+        self.proj_query = nn.Linear(channels, channels, bias=False)
+        self.proj_key = nn.Linear(inputs, channels, bias=False)
+        self.proj_loc = nn.Conv1d(1, channels, kernels, padding=kernels // 2)
+        self.aggregator = nn.Linear(channels, 1)
+
         self.trans = nn.Sequential(
-            nn.Linear(channels, channels), nn.Tanh(),
-            nn.Linear(channels, 2), nn.Softmax(dim=-1))
+            nn.Linear(inputs + queries + channels, channels),
+            nn.Tanh(),
+            nn.Linear(channels, 2),
+            nn.Softmax(dim=-1))
 
     def state_init(self, encodings: torch.Tensor, mask: torch.Tensor) -> \
             Dict[str, torch.Tensor]:
@@ -39,7 +47,9 @@ class Aligner(nn.Module):
             # [B, S]
             alpha = torch.zeros(bsize, seqlen, device=encodings.device)
             alpha[:, 0] = 1.
-        return {'enc': encodings, 'mask': mask, 'state': state, 'alpha': alpha}
+            # [B, S]
+            align = alpha.clone()
+        return {'enc': encodings, 'mask': mask, 'state': state, 'alpha': alpha, 'align': align}
 
     def decode(self, frame: torch.Tensor, state: Dict[str, torch.Tensor]) -> \
             Dict[str, torch.Tensor]:
@@ -50,15 +60,28 @@ class Aligner(nn.Module):
         Returns:
             state: updated states.
         """
+        ## 1. location sensitive attention
         # [B, I]
         prev = (state['enc'] * state['alpha'][..., None]).sum(dim=1)
         # [B, C]
-        cellstate = self.attn(torch.cat([frame, prev], dim=-1), state['state'])
-        # [B, 1]
-        stop, next_ = self.trans(cellstate).chunk(2, dim=-1)
+        query = self.attn(torch.cat([frame, prev], dim=-1), state['state'])
+        # [B, S, A]
+        score = self.proj_query(query)[:, None] + self.proj_key(state['enc']) \
+            + self.proj_loc(state['align'][:, None]).transpose(1, 2)
         # [B, S]
-        alpha = stop * state['alpha'] + next_ * F.pad(state['alpha'], [1, -1])
-        return {**state, 'state': cellstate, 'alpha': alpha * state['mask']}
+        energy = self.aggregator(torch.tanh(score)).squeeze(dim=-1)
+        energy.masked_fill_(~state['mask'].to(torch.bool), -np.inf)
+        # [B, S]
+        align = torch.softmax(energy, dim=-1)
+        
+        ## 2. cumulation
+        # [B, 1]
+        stop, next_ = self.trans(torch.cat([frame, prev, query], dim=-1)).chunk(2, dim=-1)
+        # [B, S]
+        alpha = (stop * state['alpha'] + next_ * F.pad(state['alpha'], [1, -1]) + 1e-5) * align
+        # [B, S]
+        alpha = alpha / alpha.sum(dim=-1, keepdim=True)
+        return {**state, 'state': query, 'alpha': alpha, 'align': align}
 
     def forward(self,
                 encodings: torch.Tensor,

@@ -35,6 +35,7 @@ class Config:
 
         # decoder
         self.dec_prenet = [256, 128]
+        self.dec_kernels = 5
         self.dec_dropout = 0.5
         self.dec_layers = 2
 
