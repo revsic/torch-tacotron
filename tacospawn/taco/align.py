@@ -48,7 +48,9 @@ class Aligner(nn.Module):
             # [B, S]
             alpha = torch.zeros(bsize, seqlen, device=encodings.device)
             alpha[:, 0] = 1.
-        return {'enc': encodings, 'mask': mask, 'state': state, 'alpha': alpha}
+            # [B, S]
+            align = alpha.clone()
+        return {'enc': encodings, 'mask': mask, 'state': state, 'alpha': alpha, 'align': align}
 
     def decode(self, frame: torch.Tensor, state: Dict[str, torch.Tensor]) -> \
             Dict[str, torch.Tensor]:
@@ -65,13 +67,18 @@ class Aligner(nn.Module):
         query = self.attn(torch.cat([frame, prev], dim=-1), state['state'])
         # [B, S, A]
         score = self.proj_query(query)[:, None] + self.proj_key(state['enc']) \
-            + self.proj_loc(state['alpha'][:, None]).transpose(1, 2)
+            + self.proj_loc(state['align'][:, None]).transpose(1, 2)
         # [B, S]
         energy = self.aggregator(torch.tanh(score)).squeeze(dim=-1)
         energy.masked_fill_(~state['mask'].to(torch.bool), -np.inf)
         # [B, S]
-        alpha = torch.softmax(energy, dim=-1)
-        return {**state, 'state': query, 'alpha': alpha}
+        align = torch.softmax(energy, dim=-1)
+        # [B, 1]
+        stop, next_ = self.trans(torch.cat([frame, prev, query], dim=-1)).chunk(2, dim=-1)
+        # [B, S]
+        alpha = (stop * state['alpha'] + next_ * F.pad(state['alpha'], [1, -1]) + 1e-5) * align
+        alpha = alpha / alpha.sum(dim=-1, keepdim=True)
+        return {**state, 'state': query, 'alpha': alpha, 'align': align}
 
     def forward(self,
                 encodings: torch.Tensor,
