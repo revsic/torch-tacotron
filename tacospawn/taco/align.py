@@ -82,8 +82,10 @@ class Aligner(nn.Module):
         score = self.proj_loc(prev_alpha) + dynconv(prev_alpha, dynweight)
         # [B, 1, S]
         prior = F.conv1d(F.pad(prev_alpha, [self.prior.shape[-1] - 1, 0]), self.prior)
+        # [B, 1, S]
+        log_prior = torch.log(prior + 1e-5)
         # [B, S]
-        energy = (self.aggregator(torch.tanh(score)) + prior).squeeze(dim=1)
+        energy = (self.aggregator(torch.tanh(score)) + log_prior).squeeze(dim=1)
         energy.masked_fill_(~state['mask'].to(torch.bool), -np.inf)
         # [B, S]
         alpha = torch.softmax(energy, dim=-1)
