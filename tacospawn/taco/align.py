@@ -31,16 +31,19 @@ class Aligner(nn.Module):
         super().__init__()
         self.loc, self.kernels = loc, kernels
         self.attn = nn.GRUCell(inputs, channels)
-        self.proj_loc = nn.Conv1d(1, loc, kernels, padding=kernels // 2)
-        self.proj_dyn = nn.Sequential(
+        self.proj_loc = nn.Sequential(
+            nn.Conv1d(1, loc, kernels, padding=kernels // 2, bias=False),
+            nn.Conv1d(loc, channels // 2, 1, bias=False))
+        self.proj_kernel = nn.Sequential(
             nn.Linear(channels, channels),
             nn.Tanh(),
             nn.Linear(channels, loc * kernels, bias=False))
+        self.proj_dyn = nn.Conv1d(loc, channels // 2, 1)
         self.register_buffer(
             'prior',
-            # flip filter since convolution is cross correlation with flipped weights.
+            # flip for pushing forward
             torch.flip(beta_bernoulli(priorlen, alpha, beta)[None, None], dims=(-1,)))
-        self.aggregator = nn.Conv1d(loc, 1, 1)
+        self.aggregator = nn.Conv1d(channels // 2, 1, 1, bias=False)
 
     def state_init(self, encodings: torch.Tensor, mask: torch.Tensor) -> \
             Dict[str, torch.Tensor]:
@@ -75,11 +78,11 @@ class Aligner(nn.Module):
         # [B, C]
         query = self.attn(torch.cat([frame, prev], dim=-1), state['state'])
         # [B, A, 1, K]
-        dynweight = self.proj_dyn(query).reshape(-1, self.loc, 1, self.kernels)
+        kernel = self.proj_kernel(query).reshape(-1, self.loc, 1, self.kernels)
         # [B, 1, S]
         prev_alpha = state['alpha'][:, None]
-        # [B, A, S]
-        score = self.proj_loc(prev_alpha) + dynconv(prev_alpha, dynweight)
+        # [B, C // 2, S]
+        score = self.proj_loc(prev_alpha) + self.proj_dyn(dynconv(prev_alpha, kernel))
         # [B, 1, S]
         prior = F.conv1d(F.pad(prev_alpha, [self.prior.shape[-1] - 1, 0]), self.prior)
         # [B, 1, S]
