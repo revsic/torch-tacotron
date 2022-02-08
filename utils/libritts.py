@@ -5,8 +5,7 @@ from speechset.datasets import LibriTTS
 from speechset.utils import mp_dump, TextNormalizer, IDWrapper
 
 
-@IDWrapper
-class LibriTTSDataset(AcousticDataset):
+class LibriTTSDataset(IDWrapper):
     """LibriTTS dataset.
     """
     def __init__(self, data_dir: str, config: Config):
@@ -15,8 +14,9 @@ class LibriTTSDataset(AcousticDataset):
             data_dir: path to the dataset.
             config: configuration.
         """
-        super().__init__(LibriTTS(data_dir), config, TextNormalizer.REPORT_LOG)
-    
+        super().__init__(
+            AcousticDataset(LibriTTS(data_dir), config, TextNormalizer.REPORT_LOG))
+
     @classmethod
     def count_speakers(data_dir: str) -> int:
         """Count the number of the speakers.
