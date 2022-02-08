@@ -9,9 +9,10 @@ import torch
 import tqdm
 from torch.utils.tensorboard import SummaryWriter
 
+import speechset
 from config import Config
 from tacospawn import TacoSpawn
-from utils.libritts import LibriTTS, LibriTTSDataset, DumpDataset
+from utils.libritts import LibriTTSDataset
 from utils.wrapper import TrainingWrapper
 
 
@@ -174,7 +175,7 @@ if __name__ == '__main__':
     torch.manual_seed(args.seed)
 
     # configurations
-    config = Config(LibriTTS.count_speakers(args.data_dir))
+    config = Config(LibriTTSDataset.count_speakers(args.data_dir))
     if args.config is not None:
         print('[*] load config: ' + args.config)
         with open(args.config) as f:
@@ -197,7 +198,8 @@ if __name__ == '__main__':
         os.makedirs(ckpt_path)
 
     # prepare datasets
-    libritts = DumpDataset(args.data_dir, config.data) \
+    libritts = speechset.utils.DumpDataset(
+            LibriTTSDataset, args.data_dir) \
         if args.from_dump else LibriTTSDataset(args.data_dir, config.data)
 
     # model definition
