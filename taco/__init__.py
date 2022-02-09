@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from .cbhg import Cbhg
 from .decoder import Decoder
 from .misc import Prenet, Reduction
-from ..config import Config
+from .config import Config
 
 
 class Tacotron(nn.Module):
@@ -38,7 +38,7 @@ class Tacotron(nn.Module):
         self.reduction = Reduction(config.reduction, value=np.log(1e-5))
 
         self.decoder = Decoder(
-            config.channels + config.spkembed,
+            config.channels,
             config.channels,
             config.dec_prenet,
             config.dca_loc,
@@ -54,7 +54,6 @@ class Tacotron(nn.Module):
     def forward(self,
                 text: torch.Tensor,
                 textlen: torch.Tensor,
-                spkembed: torch.Tensor,
                 mel: Optional[torch.Tensor] = None,
                 mellen: Optional[torch.Tensor] = None) -> \
             Tuple[torch.Tensor, torch.Tensor, Dict[str, torch.Tensor]]:
@@ -62,7 +61,6 @@ class Tacotron(nn.Module):
         Args;
             text: [torch.long; [B, S]], text symbol sequences.
             textlen: [torch.long; [B]], sequence lengths.
-            spkembed: [torch.float32; [B, E]], speaker embeddings.
             mel: [torch.float32; [B, T, M]], mel-spectrogram, if provided.
             mellen: [torch.long; [B]], spectrogram lengths, if provided.
         Returns:
@@ -70,8 +68,7 @@ class Tacotron(nn.Module):
             mellen: [torch.long; [B]], spectrogram lengths.
             auxiliary: auxiliary informations.
                 align: [torch.float32; [B, T // F, S]], attention alignments.
-                durations: [torch.float32; [B, S]], durations.
-                factor: [torch.float32; [B]], size ratio between ground-truth and predicted lengths.
+                unmasked: [torch.float32; [B, T, M]], unmasked predicted spectrogram.
         """
         ## 1. Text encoding
         # pad for eos check, default zero for pad
@@ -88,9 +85,6 @@ class Tacotron(nn.Module):
         preproc = self.prenet(embed) * text_mask[..., None]
         # [B, S, C]
         encodings = self.cbhg(preproc)
-        # [B, S, C + E]
-        encodings = torch.cat([
-            encodings, spkembed[:, None].repeat(1, seqlen, 1)], dim=-1)
 
         ## 3. Decoding
         if mel is not None:
