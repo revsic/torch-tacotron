@@ -80,6 +80,8 @@ class Trainer:
                     pbar.update()
                     pbar.set_postfix({'loss': loss.item(), 'step': step})
 
+                    self.train_log.add_scalar('loss/loss', loss.item(), step)
+
                     with torch.no_grad():
                         grad_norm = np.mean([
                             torch.norm(p.grad).item()
