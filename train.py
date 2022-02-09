@@ -11,8 +11,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 import speechset
 from config import Config
-from tacospawn import TacoSpawn
-from utils.libritts import LibriTTSDataset
+from taco import Tacotron
 from utils.wrapper import TrainingWrapper
 
 
@@ -20,14 +19,14 @@ class Trainer:
     """TacoSpawn trainer.
     """
     def __init__(self,
-                 model: TacoSpawn,
-                 dataset: LibriTTSDataset,
+                 model: Tacotron,
+                 dataset: speechset.AcousticDataset,
                  config: Config,
                  device: torch.device):
         """Initializer.
         Args:
-            model: tacospawn model.
-            dataset: multispeaker dataset.
+            model: tacotron model.
+            dataset: dataset.
             config: unified configurations.
             device: target computing device.
         """
@@ -71,7 +70,7 @@ class Trainer:
         for epoch in tqdm.trange(epoch, self.config.train.epoch):
             with tqdm.tqdm(total=len(self.loader), leave=False) as pbar:
                 for it, bunch in enumerate(self.loader):
-                    loss, losses, aux = self.wrapper.compute_loss(bunch)
+                    loss, aux = self.wrapper.compute_loss(bunch)
                     # update
                     self.optim.zero_grad()
                     loss.backward()
@@ -81,9 +80,6 @@ class Trainer:
                     pbar.update()
                     pbar.set_postfix({'loss': loss.item(), 'step': step})
 
-                    for name, loss in losses.items():
-                        self.train_log.add_scalar(f'loss/{name}', loss.item(), step)
-                    
                     with torch.no_grad():
                         grad_norm = np.mean([
                             torch.norm(p.grad).item()
@@ -97,7 +93,7 @@ class Trainer:
 
                     if (it + 1) % (len(self.loader) // 100) == 0:
                         IDX = 0
-                        _, _, gt, textlen, mellen = [b[IDX] for b in bunch]
+                        _, gt, textlen, mellen = [b[IDX] for b in bunch]
                         self.train_log.add_image(
                             # [3, M, T]
                             'train/gt', self.mel_img(gt[:mellen]).transpose(2, 0, 1), step)
@@ -107,7 +103,7 @@ class Trainer:
                             # [3, M, T]
                             'train/mel', self.mel_img(mel).transpose(2, 0, 1), step)
                         # []
-                        foldlen = -(-mellen // self.model.taco.reduction.factor)
+                        foldlen = -(-mellen // self.model.reduction.factor)
                         # [T, S]
                         align = aux['align'][IDX, :foldlen + 1, :textlen + 1].cpu().detach().numpy()
                         # [3, S, T]
@@ -116,12 +112,11 @@ class Trainer:
 
                     if (it + 1) % (len(self.loader) // 10) == 0:
                         # wrapping
-                        sid, text, _, textlen, _ = self.wrapper.wrap(bunch)
+                        text, _, textlen, _ = self.wrapper.wrap(bunch)
                         with torch.no_grad():
                             self.model.eval()
                             # [1, T, M]
-                            pred, _, aux = self.model(
-                                text[:1], textlen[:1], sid=sid[:1], sample=False)
+                            pred, _, aux = self.model(text[:1], textlen[:1])
                             self.model.train()
                         # [T, M]
                         pred = pred.cpu().detach().numpy().squeeze(0)
@@ -175,7 +170,7 @@ if __name__ == '__main__':
     torch.manual_seed(args.seed)
 
     # configurations
-    config = Config(LibriTTSDataset.count_speakers(args.data_dir))
+    config = Config()
     if args.config is not None:
         print('[*] load config: ' + args.config)
         with open(args.config) as f:
@@ -198,16 +193,18 @@ if __name__ == '__main__':
         os.makedirs(ckpt_path)
 
     # prepare datasets
-    libritts = speechset.utils.DumpDataset(
-            LibriTTSDataset, args.data_dir) \
-        if args.from_dump else LibriTTSDataset(args.data_dir, config.data)
+    ljspeech = speechset.utils.DumpDataset(
+            speechset.AcousticDataset, args.data_dir) \
+        if args.from_dump \
+        else speechset.AcousticDataset(
+            speechset.datasets.LJSpeech(args.data_dir), config.data)
 
     # model definition
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-    tacospawn = TacoSpawn(config.model)
-    tacospawn.to(device)
+    tacotron = Tacotron(config.model)
+    tacotron.to(device)
 
-    trainer = Trainer(tacospawn, libritts, config, device)
+    trainer = Trainer(tacotron, ljspeech, config, device)
 
     # loading
     if args.load_epoch > 0:
@@ -218,7 +215,7 @@ if __name__ == '__main__':
             f'{config.train.name}_{args.load_epoch}.ckpt')
         # load checkpoint
         ckpt = torch.load(ckpt_path)
-        tacospawn.load(ckpt, trainer.optim)
+        tacotron.load(ckpt, trainer.optim)
         print('[*] load checkpoint: ' + ckpt_path)
         # since epoch starts with 0
         args.load_epoch += 1

@@ -1,6 +1,6 @@
 from speechset import AcousticDataset
 from speechset.config import Config as DataConfig
-from tacospawn.config import Config as ModelConfig
+from taco.config import Config as ModelConfig
 
 
 class TrainConfig:
@@ -36,14 +36,11 @@ class TrainConfig:
 class Config:
     """Integrated configuration.
     """
-    def __init__(self, speakers: int):
+    def __init__(self):
         self.train = TrainConfig()
         # reset data.batch, use train.batch instead.
         self.data = DataConfig(batch=None)
-        self.model = ModelConfig(
-            AcousticDataset.VOCABS,
-            self.data.mel,
-            speakers)
+        self.model = ModelConfig(AcousticDataset.VOCABS, self.data.mel)
 
     def dump(self):
         """Dump configurations into serializable dictionary.
