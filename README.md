@@ -1,9 +1,9 @@
-# torch-tacospawn
+# torch-tacotron
 
-(Unofficial) PyTorch implementation of TacoSpawn, Speaker Generation, Stanton et al., 2021.
+(Unofficial) PyTorch implementation of Tacotron, Wang et al., 2017.
 
-- Speaker Generation [[arXiv:2111.05095](https://arxiv.org/abs/2111.05095)]
-- Unconditional VLB-TacoSpawn implementation.
+- Tacotron: Towards End-to-End Speech Synthesis [[arXiv:1703.10135](https://arxiv.org/abs/1703.10135)]
+- Predict mel-spectrogram to use other neural vocoder.
 
 ## Requirements
 
@@ -11,24 +11,24 @@ Tested in python 3.7.9 ubuntu conda environment, [requirements.txt](./requiremen
 
 ## Usage
 
-Download LibriTTS dataset from [openslr](https://openslr.org/60/)
+Download LJSpeech dataset from [official:keithito](https://keithito.com/LJ-Speech-Dataset/)
 
 To train model, run [train.py](./train.py). 
 
 ```bash
-python train.py --data-dir /datasets/LibriTTS/train-clean-360
+python train.py --data-dir /datasets/LJSpeech-1.1
 ```
 
 Or dump the dataset to accelerate the train.
 
 ```bash
-python -m utils.libritts.dump \
-    --data-dir /datasets/LibriTTS/train-clean-360 \
-    --output-dir /datasets/LibriTTS/train-clean-360-dump \
+python -m utils.dump \
+    --data-dir /datasets/LJSpeech-1.1 \
+    --output-dir /datasets/LJSpeech-1.1/dump \
     --num-proc 8
 
 python train.py \
-    --data-dir /datasets/libritts/raw-LibriTTS/train-clean-360-dump \
+    --data-dir /datasets/LJSpeech-1.1/dump \
     --from-dump
 ```
 
@@ -36,7 +36,7 @@ To start to train from previous checkpoint, `--load-epoch` is available.
 
 ```bash
 python train.py \
-    --data-dir /datasets/LibriTTS/train-clean-360-dump \
+    --data-dir /datasets/LJSpeech-1.1/dump \
     --from-dump \
     --load-epoch 20 \
     --config ./ckpt/t1.json
