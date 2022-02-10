@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 import torch
@@ -109,3 +109,24 @@ class Tacotron(nn.Module):
         masked_mel = mel.masked_fill(~mel_mask[..., None].to(torch.bool), np.log(1e-5))
         # [B, T, M]
         return masked_mel, mellen, {**aux, 'unmasked': mel}
+
+    def save(self, path: str, optim: Optional[torch.optim.Optimizer] = None):
+        """Save the models.
+        Args:
+            path: path to the checkpoint.
+            optim: optimizer, if provided.
+        """
+        dump = {'model': self.state_dict()}
+        if optim is not None:
+            dump['optim'] = optim.state_dict()
+        torch.save(dump, path)
+
+    def load(self, states: Dict[str, Any], optim: Optional[torch.optim.Optimizer] = None):
+        """Load from checkpoints.
+        Args:
+            states: state dict.
+            optim: optimizer, if provided.
+        """
+        self.load_state_dict(states['model'])
+        if optim is not None:
+            optim.load_state_dict(states['optim'])
