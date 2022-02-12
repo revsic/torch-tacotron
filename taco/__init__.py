@@ -37,6 +37,8 @@ class Tacotron(nn.Module):
         # padding with silence
         self.reduction = Reduction(config.reduction, value=np.log(1e-5))
 
+        self.teacher_force = config.teacher_force
+
         self.decoder = Decoder(
             config.channels,
             config.channels,
@@ -93,7 +95,9 @@ class Tacotron(nn.Module):
         else:
             remains = None
         # [B, T // F, F x M]
-        mel, aux = self.decoder(encodings, text_mask, gt=mel)
+        mel, aux = self.decoder(encodings, text_mask, gt=mel) \
+            if self.teacher_force is None \
+            else self.decoder.greedyfwd(encodings, text_mask, gt=mel, prob=self.teacher_force)
 
         ## 4. Unfold
         if mellen is None:

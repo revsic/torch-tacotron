@@ -38,6 +38,9 @@ class Config:
         self.dec_prenet = [256, 128]
         self.dec_dropout = 0.5
         self.dec_layers = 2
+        
+        # teacher force
+        self.teacher_force = None
 
         # inference
         self.dec_max_factor = 8 // self.reduction

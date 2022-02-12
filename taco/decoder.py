@@ -65,7 +65,7 @@ class Decoder(nn.Module):
         """
         # autoregression
         if gt is None:
-            return self.inference(inputs, mask)
+            return self.greedyfwd(inputs, mask)
         # [B, T, H], pad for teacher force, default zero frame.
         preproc = self.prenet(F.pad(gt, [0, 0, 1, -1], value=np.log(1e-5)))
         # [B, T, S]
@@ -82,7 +82,7 @@ class Decoder(nn.Module):
         # [B, T, M]
         return self.proj(x), {'align': alpha}
 
-    def inference(self,
+    def greedyfwd(self,
                   inputs: torch.Tensor,
                   mask: torch.Tensor,
                   gt: Optional[torch.Tensor] = None,
