@@ -43,7 +43,7 @@ class Decoder(nn.Module):
         self.prenet = Prenet(mel, hiddens, dropout)
         self.aligner = Aligner(
             inputs + hiddens[-1], channels, loc, kernels, priorlen, alpha, beta)
-        self.blender = nn.GRU(inputs + hiddens[-1], channels)
+        self.blender = nn.GRU(inputs + hiddens[-1], channels, batch_first=True)
         self.grus = nn.ModuleList([
             nn.GRU(channels, channels, batch_first=True)
             for _ in range(layers)])
@@ -82,12 +82,18 @@ class Decoder(nn.Module):
         # [B, T, M]
         return self.proj(x), {'align': alpha}
 
-    def inference(self, inputs: torch.Tensor, mask: torch.Tensor) -> \
+    def inference(self,
+                  inputs: torch.Tensor,
+                  mask: torch.Tensor,
+                  gt: Optional[torch.Tensor] = None,
+                  prob: float = 0.) -> \
             Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
         """Generate spectrogram autoregressively.
         Args:
             inputs: [torch.float32; [B, S, I]], input tensors.
             mask: [torch.float32; [B, S]], text masks.
+            gt: [torch.float32; [B, T, M]], ground-truth spectrogram if provided.
+            prob: selection probabiilty, 0. for gt only, 1. for inferenced only.
         Returns:
             [torch.float32; [B, T, M]], predicted spectrogram.
         """
@@ -105,14 +111,21 @@ class Decoder(nn.Module):
         textlen = mask.sum(dim=-1).long()
         # [B, M], start frame
         frame = torch.full([bsize, self.proj.out_features], np.log(1e-5), device=inputs.device)
+        if gt is None:
+            maxlen = seqlen * self.max_factor
+        else:
+            maxlen = gt.shape[1]
+            # [B, T, M]
+            gt = F.pad(gt, [0, 0, 1, -1], value=np.log(1e-5))
         # [B], initial spectrogram lengths.
-        maxlen = seqlen * self.max_factor
         mellen = torch.full([bsize], maxlen, device=inputs.device)
         # T x [B, M], T x [B, S]
         frames, alphas = [], []
         for timestep in range(maxlen):
             # [B, H]
-            preproc = self.prenet(frame)
+            preproc = self.prenet(frame
+                # selection probability
+                if gt is None or torch.rand(1) < prob else gt[:, timestep])
             # compute align
             state = self.aligner.decode(preproc, state)
             alphas.append(state['alpha'])
@@ -138,7 +151,7 @@ class Decoder(nn.Module):
             # B
             mellen = torch.where(eos, timestep, mellen)
             # if all done
-            if eos.all():
+            if gt is None and eos.all():
                 break
         # [B, T // F, F x M]
         return torch.stack(frames, dim=1), {
