@@ -14,7 +14,8 @@ class NoamScheduler(torch.optim.lr_scheduler._LRScheduler):
     def get_lr(self) -> List[float]:
         """Compute learning rates, linear warmup and exponential decaying.
         """
+        # for initial step
+        last = max(1, self.last_epoch)
         return [
-            lr * self.channels ** -0.5 * min(
-                self.last_epoch ** -0.5, self.last_epoch * self.warmup ** -1.5)
+            lr * self.channels ** -0.5 * min(last ** -0.5, last * self.warmup ** -1.5)
             for lr in self.base_lrs]
