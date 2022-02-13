@@ -8,7 +8,8 @@ class TrainConfig:
     """
     def __init__(self):
         # optimizer
-        self.learning_rate = 2e-4
+        self.learning_rate = 1.  # for noam
+        self.warmup = 4000
         self.beta1 = 0.9
         self.beta2 = 0.999
         self.eps = 1e-8

@@ -12,6 +12,7 @@ from torch.utils.tensorboard import SummaryWriter
 import speechset
 from config import Config
 from taco import Tacotron
+from utils.scheduler import NoamScheduler
 from utils.wrapper import TrainingWrapper
 
 
@@ -50,6 +51,9 @@ class Trainer:
             (config.train.beta1, config.train.beta2),
             config.train.eps)
 
+        self.scheduler = NoamScheduler(
+            self.optim, self.config.train.warmup, self.config.model.channels)
+
         self.train_log = SummaryWriter(
             os.path.join(config.train.log, config.train.name, 'train'))
         self.test_log = SummaryWriter(
@@ -75,6 +79,8 @@ class Trainer:
                     self.optim.zero_grad()
                     loss.backward()
                     self.optim.step()
+                    # step level update
+                    self.scheduler.step()
 
                     step += 1
                     pbar.update()
