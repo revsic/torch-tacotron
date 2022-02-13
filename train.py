@@ -98,6 +98,8 @@ class Trainer:
 
                     self.train_log.add_scalar('common/grad-norm', grad_norm, step)
                     self.train_log.add_scalar('common/param-norm', param_norm, step)
+                    self.train_log.add_scalar(
+                        'common/learning-rate', self.optim.param_groups[0]['lr'], step)
 
                     if (it + 1) % (len(self.loader) // 100) == 0:
                         IDX = 0
