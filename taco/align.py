@@ -56,10 +56,10 @@ class Aligner(nn.Module):
             # [B, C]
             state = torch.zeros(bsize, self.attn.hidden_size, device=encodings.device)
             # [B, S]
-            align = torch.full((bsize, seqlen), seqlen ** -1, device=encodings.device)
-            # [B, S]
             alpha = torch.zeros(bsize, seqlen, device=encodings.device)
             alpha[:, 0] = 1.
+            # [B, S]
+            align = alpha.clone()
             # [B, 1]
             prob = torch.full((bsize, 1), 0.5, device=encodings.device)
             # [B, S], inverse the binary mask for method `masked_fill_`
