@@ -111,23 +111,35 @@ class Tacotron(nn.Module):
         # [B, T, M]
         return masked_mel, mellen, {**aux, 'unmasked': mel}
 
-    def save(self, path: str, optim: Optional[torch.optim.Optimizer] = None):
+    def save(self,
+             path: str,
+             optim: Optional[torch.optim.Optimizer] = None,
+             sched: Optional[torch.optim.lr_scheduler._LRScheduler] = None):
         """Save the models.
         Args:
             path: path to the checkpoint.
             optim: optimizer, if provided.
+            sched: learning rate scheduler, if provided.
         """
         dump = {'model': self.state_dict()}
         if optim is not None:
             dump['optim'] = optim.state_dict()
+        if sched is not None:
+            dump['sched'] = sched.state_dict()
         torch.save(dump, path)
 
-    def load(self, states: Dict[str, Any], optim: Optional[torch.optim.Optimizer] = None):
+    def load(self,
+             states: Dict[str, Any],
+             optim: Optional[torch.optim.Optimizer] = None,
+             sched: Optional[torch.optim.lr_scheduler._LRScheduler] = None):
         """Load from checkpoints.
         Args:
             states: state dict.
             optim: optimizer, if provided.
+            sched: scheduler, if provided.
         """
         self.load_state_dict(states['model'])
         if optim is not None:
             optim.load_state_dict(states['optim'])
+        if sched is not None:
+            sched.load_state_dict(states['sched'])
