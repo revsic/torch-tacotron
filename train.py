@@ -126,7 +126,7 @@ class Trainer:
                         with torch.no_grad():
                             self.model.eval()
                             # [1, T, M]
-                            pred, _, aux = self.model(text[:1], textlen[:1])
+                            pred, _, aux = self.model(text[:1, :textlen[0]], textlen[:1])
                             self.model.train()
                         # [T, M]
                         pred = pred.cpu().detach().numpy().squeeze(0)
