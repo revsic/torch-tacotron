@@ -72,6 +72,11 @@ class Trainer:
         self.model.train()
         step = epoch * len(self.loader)
         for epoch in tqdm.trange(epoch, self.config.train.epoch):
+            # teacher force scheduling
+            if epoch in self.config.train.teacher_scheduler:
+                self.model.teacher_force = self.config.train.teacher_scheduler[epoch]
+                self.train_log.add_scalar('common/teacher-force', self.model.teacher_force, step)
+
             with tqdm.tqdm(total=len(self.loader), leave=False) as pbar:
                 for it, bunch in enumerate(self.loader):
                     loss, aux = self.wrapper.compute_loss(bunch)

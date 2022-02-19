@@ -14,6 +14,13 @@ class TrainConfig:
         self.beta2 = 0.999
         self.eps = 1e-8
 
+        # teacher forcing scheduler
+        self.teacher_scheduler = {
+            25: 0.3,
+            55: 0.5,
+            85: 0.7,
+        }
+
         # loader settings
         self.batch = 32
         self.shuffle = True
@@ -57,6 +64,9 @@ class Config:
             if hasattr(conf, k):
                 obj = getattr(conf, k)
                 load_state(obj, v)
+        # fix dict key types
+        conf.train.teacher_scheduler = {
+            int(key): val for key, val in conf.train.teacher_scheduler.items()}
         return conf
 
 
