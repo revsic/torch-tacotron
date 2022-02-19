@@ -28,11 +28,8 @@ class Config:
         self.reduction = 2
 
         # align
-        self.dca_loc = 8
-        self.dca_kernels = 21
-        self.dca_priorlen = 11
-        self.dca_alpha = 0.1
-        self.dca_beta = 0.9
+        self.fwd_loc = 32
+        self.fwd_kernels = 31
 
         # decoder
         self.dec_prenet = [256, 128]

@@ -18,9 +18,6 @@ class Decoder(nn.Module):
                  hiddens: List[int],
                  loc: int,
                  kernels: int,
-                 priorlen: int,
-                 alpha: float,
-                 beta: float,
                  dropout: float,
                  layers: int,
                  mel: int,
@@ -32,8 +29,6 @@ class Decoder(nn.Module):
             hiddens: the size of the hidden units for decoder prenet.
             loc: size of the hiddens states for attention computation.
             kernels: size of the convolutional kernels of location sensitive attention.
-            priorlen: size of the beta-binomial prior distribution lengths.
-            alpha, beta: beta-binomial parameters.
             dropout: dropout rates for decoder prenet.
             layers: the number of the GRU layers.
             mel: size of the output channels (channels of mel-spectrogram).
@@ -42,7 +37,7 @@ class Decoder(nn.Module):
         super().__init__()
         self.prenet = Prenet(mel, hiddens, dropout)
         self.aligner = Aligner(
-            inputs + hiddens[-1], channels, loc, kernels, priorlen, alpha, beta)
+            inputs, hiddens[-1], mel, channels, loc, kernels)
         self.blender = nn.GRU(inputs + hiddens[-1], channels, batch_first=True)
         self.grus = nn.ModuleList([
             nn.GRU(channels, channels, batch_first=True)
@@ -66,10 +61,12 @@ class Decoder(nn.Module):
         # autoregression
         if gt is None:
             return self.greedyfwd(inputs, mask)
-        # [B, T, H], pad for teacher force, default zero frame.
-        preproc = self.prenet(F.pad(gt, [0, 0, 1, -1], value=np.log(1e-5)))
+        # [B, T, M], pad for teacher force, default zero frame.
+        causal = F.pad(gt, [0, 0, 1, -1], value=np.log(1e-5))
+        # [B, T, H]
+        preproc = self.prenet(causal)
         # [B, T, S]
-        alpha = self.aligner(inputs, mask, preproc)
+        alpha = self.aligner(inputs, preproc, causal, mask)
         # [B, T, I]
         aligned = torch.matmul(alpha, inputs)
         # [B, T, C]
@@ -115,19 +112,19 @@ class Decoder(nn.Module):
             maxlen = seqlen * self.max_factor
         else:
             maxlen = gt.shape[1]
-            # [B, T, M]
+            # [B, T, M], causal
             gt = F.pad(gt, [0, 0, 1, -1], value=np.log(1e-5))
         # [B], initial spectrogram lengths.
         mellen = torch.full([bsize], maxlen, device=inputs.device)
         # T x [B, M], T x [B, S]
         frames, alphas = [], []
         for timestep in range(maxlen):
+            # [B, M], selection probability
+            prev = frame if gt is None or torch.rand(1) < prob else gt[:, timestep]
             # [B, H]
-            preproc = self.prenet(frame
-                # selection probability
-                if gt is None or torch.rand(1) < prob else gt[:, timestep])
+            preproc = self.prenet(prev)
             # compute align
-            state = self.aligner.decode(preproc, state)
+            state = self.aligner.decode(preproc, prev, state)
             alphas.append(state['alpha'])
             # [B, I]
             aligned = (inputs * state['alpha'][..., None]).sum(dim=1)
