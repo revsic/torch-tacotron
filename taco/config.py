@@ -29,11 +29,11 @@ class Config:
 
         # align
         self.fwd_loc = 32
-        self.fwd_kernels = 31
+        self.fwd_kernels = 11
 
         # decoder
-        self.dec_prenet = [256, 128]
-        self.dec_dropout = 0.5
+        self.dec_prenet = [80, 128]
+        self.dec_dropout = 0.
         self.dec_layers = 2
         
         # teacher force
