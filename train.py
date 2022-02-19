@@ -146,7 +146,8 @@ class Trainer:
                         del pred
 
             self.model.save(
-                '{}_{}.ckpt'.format(self.ckpt_path, epoch), self.optim)
+                '{}_{}.ckpt'.format(self.ckpt_path, epoch),
+                self.optim, self.scheduler)
 
     def mel_img(self, mel: np.ndarray) -> np.ndarray:
         """Generate mel-spectrogram images.
@@ -230,7 +231,7 @@ if __name__ == '__main__':
             f'{config.train.name}_{args.load_epoch}.ckpt')
         # load checkpoint
         ckpt = torch.load(ckpt_path)
-        tacotron.load(ckpt, trainer.optim)
+        tacotron.load(ckpt, trainer.optim, trainer.scheduler)
         print('[*] load checkpoint: ' + ckpt_path)
         # since epoch starts with 0
         args.load_epoch += 1
