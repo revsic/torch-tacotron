@@ -74,6 +74,11 @@ class Trainer:
         for epoch in tqdm.trange(epoch, self.config.train.epoch):
             # teacher force scheduling
             if epoch in self.config.train.teacher_scheduler:
+                if self.model.teacher_force is None:
+                    # reinitialize scheduler for training stability
+                    self.scheduler = NoamScheduler(
+                        self.optim, self.config.train.warmup, self.config.model.channels)
+                # update selection probability
                 self.model.teacher_force = self.config.train.teacher_scheduler[epoch]
                 self.train_log.add_scalar('common/teacher-force', self.model.teacher_force, step)
 
