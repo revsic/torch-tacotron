@@ -49,8 +49,17 @@ python train.py
 tensorboard --logdir ./log
 ```
 
-[WIP] inference and pretrained
+Inference and pretrained.
+```bash
+python inference.py \
+    --config ./ckpt/t1.json \
+    --ckpt ./ckpt/t1/t1_200.ckpt \
+    --text "Hello, my name is revsic."
+```
 
-## [WIP] Learning Curve
+## Learning Curve
+
+![loss curve](./rsrc/curve.png)
+![sample](./rsrc/sample.png)
 
 ## [WIP] Samples
