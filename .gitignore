@@ -7,3 +7,6 @@ test.py
 # train
 ckpt
 log
+
+# script
+run.sh
