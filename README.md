@@ -62,4 +62,6 @@ python inference.py \
 ![loss curve](./rsrc/curve.png)
 ![sample](./rsrc/sample.png)
 
-## [WIP] Samples
+## Samples
+
+Reference [https://revsic.github.io/torch-tacotron](https://revsic.github.io/torch-tacotron).
