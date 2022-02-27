@@ -57,6 +57,23 @@ python inference.py \
     --text "Hello, my name is revsic."
 ```
 
+Pretrained checkpoints are relased on [releases](https://github.com/revsic/torch-tacotron/releases).
+
+To use pretrained model, download files and unzip it. Followings are sample script.
+
+```py
+from config import Config
+from taco import Tacotron
+
+with open('t1.json') as f:
+    config = Config.load(json.load(f))
+
+ckpt = torch.load('t1_200.ckpt', map_location='cpu')
+
+tts = Tacotron(config.model)
+tts.load(ckpt)
+```
+
 ## Learning Curve
 
 ![loss curve](./rsrc/curve.png)
