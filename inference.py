@@ -36,7 +36,7 @@ label = torch.tensor(
 # S
 textlen = torch.tensor(len(label), dtype=torch.long, device=device)
 
-with torch.no_grad():
+with torch.inference_mode():
     # [1, T, M]
     mel, _, _ = tts(label[None], textlen[None])
     # [1, T x H]
