@@ -8,7 +8,7 @@ from taco import Tacotron
 
 
 class TrainingWrapper:
-    """TacoSpawn training wrapper.
+    """Tacotron training wrapper.
     """
     def __init__(self, model: Tacotron, device: torch.device):
         """Initializer.
@@ -30,7 +30,7 @@ class TrainingWrapper:
 
     def compute_loss(self, bunch: List[np.ndarray]) \
             -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
-        """Compute unconditional VLB-TacoSpawn loss.
+        """Compute unconditional Tacotron loss.
         Args:
             bunch: input tensors.
                 text: [np.long; [B, S]], input text tokens.
